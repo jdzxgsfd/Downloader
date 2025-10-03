@@ -25,16 +25,43 @@ jobs:
           # 运行 exe（替换为你的程序文件名）
           .\NotepadPlusPlusReleaseDownloader.exe
 
-      # 步骤3：创建 GitHub Release 并上传文件
+      # 步骤3：读取tag.txt和title.txt内容
+      - name: 读取标签和标题文件
+        id: read_info
+        run: |
+          # 读取tag.txt内容（去除空白字符）
+          TAG_CONTENT=$(cat tag.txt | tr -d '\n' | xargs)
+          # 读取title.txt内容（去除空白字符）
+          TITLE_CONTENT=$(cat title.txt | tr -d '\n' | xargs)
+          
+          # 验证文件内容不为空
+          if [ -z "$TAG_CONTENT" ]; then
+            echo "Error: tag.txt内容为空"
+            exit 1
+          fi
+          if [ -z "$TITLE_CONTENT" ]; then
+            echo "Error: title.txt内容为空"
+            exit 1
+          fi
+          
+          # 输出到环境变量供后续步骤使用
+          echo "tag=$TAG_CONTENT" >> $GITHUB_OUTPUT
+          echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
+        shell: bash  # 使用bash处理文本更可靠
+        
+      # 步骤4：创建 GitHub Release 并上传文件
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           # Release 标题和标签（使用时间戳确保唯一）
-          name: 自动更新-${{ github.run_number }}
-          tag_name: auto-${{ github.run_number }}
+          tag_name: ${{ steps.read_info.outputs.tag }}  # 从tag.txt读取的标签
+          name: ${{ steps.read_info.outputs.title }}    # 从title.txt读取的标题
           # 上传文件（根据实际情况调整路径，支持多个文件）
           files: |
             ./downloading/*
+          body: |                                       # 发布说明（可自定义）
+            自动发布于 ${{ github.event.head_commit.timestamp }}
+            运行编号：${{ github.run_number }}
           # 自动删除旧的 Release（可选，避免仓库体积过大）
           # prerelease: true  # 标记为预发布（可选）
         env:
