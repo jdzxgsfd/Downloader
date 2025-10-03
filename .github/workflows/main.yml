@@ -48,9 +48,29 @@ jobs:
           echo "tag=$TAG_CONTENT" >> $GITHUB_OUTPUT
           echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
         shell: bash  # 使用bash处理文本更可靠
+
+      # 步骤4：检查标签是否已存在于Releases中
+      - name: 检查标签是否已存在
+        id: check_tag
+        run: |
+          # 使用GitHub API查询仓库所有标签
+          TAGS=$(gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name')
+          
+          # 判断当前标签是否在已存在标签列表中
+          if echo "$TAGS" | grep -q "^${{ steps.read_info.outputs.tag }}$"; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "标签 ${{ steps.read_info.outputs.tag }} 已存在，无需发布"
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "标签 ${{ steps.read_info.outputs.tag }} 不存在，准备发布"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用token调用API
+        shell: bash
         
-      # 步骤4：创建 GitHub Release 并上传文件
+      # 步骤5：创建 GitHub Release 并上传文件
       - name: 发布到 GitHub Release
+        if: steps.check_tag.outputs.tag_exists == 'false'  # 条件判断
         uses: softprops/action-gh-release@v2
         with:
           # Release 标题和标签（使用时间戳确保唯一）
