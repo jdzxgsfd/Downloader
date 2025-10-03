@@ -3,7 +3,7 @@ name: 定时运行程序并发布 Release
 # 触发条件：每小时运行一次，且支持手动触发
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小时的第0分钟运行
+    - cron: '0 */1 * * *'
   workflow_dispatch:  # 允许手动触发
 
 permissions:
