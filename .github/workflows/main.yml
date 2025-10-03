@@ -6,6 +6,9 @@ on:
     - cron: '0 * * * *'  # 每小时的第0分钟运行
   workflow_dispatch:  # 允许手动触发
 
+permissions:
+  contents: write
+  
 jobs:
   run-and-release:
     runs-on: windows-latest  # .NET 4.7.2 依赖 Windows 环境
