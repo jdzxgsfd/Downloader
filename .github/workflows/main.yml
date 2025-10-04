@@ -127,7 +127,7 @@ jobs:
           TAGS=$(gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name')
           
           # 判断当前标签是否在已存在标签列表中
-          if echo "$TAGS" | grep -q "^${{ steps.read_info.outputs.tag }}$"; then
+          if echo "$TAGS" | grep -q "^${{ steps.read_info3.outputs.tag }}$"; then
             echo "tag_exists=true" >> $GITHUB_OUTPUT
             echo "标签 ${{ steps.read_info.outputs.tag }} 已存在，无需发布"
           else
@@ -144,8 +144,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # Release 标题和标签（使用时间戳确保唯一）
-          tag_name: ${{ steps.read_info.outputs.tag }}  # 从tag.txt读取的标签
-          name: ${{ steps.read_info.outputs.title }}    # 从title.txt读取的标题
+          tag_name: ${{ steps.read_info3.outputs.tag }}  # 从tag.txt读取的标签
+          name: ${{ steps.read_info3.outputs.title }}    # 从title.txt读取的标题
           # 上传文件（根据实际情况调整路径，支持多个文件）
           files: |
             ./downloading/*
