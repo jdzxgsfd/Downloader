@@ -17,17 +17,25 @@ jobs:
         include:
           - program: "NotepadPlusPlusReleaseDownloader"
             index: 0
-            total: 3
-            last_index: 2  # 总数量2的最后一个索引是1
+            total: 5
+            last_index: 4  # 总数量2的最后一个索引是1
           - program: "NuGetPackageExplorerDownloader"
             index: 1
-            total: 3
-            last_index: 2  # 两个程序共享同一个最后索引
+            total: 5
+            last_index: 4  # 两个程序共享同一个最后索引
           - program: "CefFlashBrowserDownloader"
             index: 2
-            total: 3
-            last_index: 2  # 两个程序共享同一个最后索引
-          
+            total: 5
+            last_index: 4  # 两个程序共享同一个最后索引
+          - program: "chrome_installerDownloader"
+            index: 3
+            total: 5
+            last_index: 4  # 两个程序共享同一个最后索引
+          - program: "edge_installerDownloader"
+            index: 4
+            total: 5
+            last_index: 4  # 两个程序共享同一个最后索引
+            
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
