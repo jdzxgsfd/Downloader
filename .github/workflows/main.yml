@@ -35,15 +35,37 @@ jobs:
       # 步骤2：运行当前程序（带.exe后缀）
       - name: 运行 ${{ matrix.program_base }}.exe
         run: |
-          # 检查程序文件是否存在
-          $exePath = "${{ matrix.program_base }}.exe"
+          # 强制使用绝对路径（避免相对路径解析问题）
+          $repoRoot = $env:GITHUB_WORKSPACE  # GitHub 工作流的仓库根目录绝对路径
+          $exePath = Join-Path $repoRoot "${{ matrix.program_base }}.exe"
+          
+          # 再次确认文件存在（带绝对路径检查）
           if (-not (Test-Path $exePath -PathType Leaf)) {
-            Write-Error "程序文件 $exePath 不存在，请检查仓库文件"
+            Write-Error "绝对路径下未找到文件：$exePath`n请确认文件已上传到仓库根目录"
             exit 1
           }
-          # 运行程序（假设程序会生成专属的tag和title文件）
-          & $exePath  # 使用 & 调用可执行文件，确保变量被正确解析
+          
+          # 检查文件权限（是否可执行）
+          $filePerms = (Get-Item $exePath).Attributes
+          Write-Host "文件权限：$filePerms"  # 调试输出权限信息
+          if ($filePerms -match "ReadOnly") {
+            Write-Warning "文件为只读，尝试移除只读属性"
+            Set-ItemProperty -Path $exePath -Name IsReadOnly -Value $false
+          }
+          
+          # 强制以可执行方式运行（使用 & 并指定完整路径）
+          Write-Host "尝试运行：$exePath"
+          & $exePath
+          
+          # 检查程序是否成功执行
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "$exePath 执行失败，退出码：$LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
         shell: pwsh
+        env:
+          # 临时放宽 PowerShell 执行策略（仅当前步骤有效）
+          PSExecutionPolicyPreference: Bypass
 
       # 步骤3：读取程序专属的标签和标题文件
       - name: 读取 ${{ matrix.program_base }} 的标签和标题
