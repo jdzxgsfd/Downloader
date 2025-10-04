@@ -42,7 +42,7 @@ jobs:
             exit 1
           }
           # 运行程序（假设程序会生成专属的tag和title文件）
-          .\$exePath
+          & $exePath  # 使用 & 调用可执行文件，确保变量被正确解析
         shell: pwsh
 
       # 步骤3：读取程序专属的标签和标题文件
