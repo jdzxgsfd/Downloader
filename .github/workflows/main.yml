@@ -2,8 +2,8 @@ name: 定时运行程序并发布 Release
 
 on:
   schedule:
-    - cron: '0 */1 * * *'  # 每小时运行一次
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 */1 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,27 +11,25 @@ permissions:
 jobs:
   run-and-release:
     runs-on: windows-latest
-    # 定义矩阵参数：程序名称列表
     strategy:
       matrix:
-        program: [
-          "NotepadPlusPlusReleaseDownloader",
-          "NuGetPackageExplorerDownloader"
-        ]  # 在这里添加更多程序名即可扩展
+        # 给每个程序添加一个唯一索引（0, 1, ...），用于判断是否为最后一项
+        include:
+          - program: "NotepadPlusPlusReleaseDownloader"
+            index: 0
+          - program: "NuGetPackageExplorerDownloader"
+            index: 1
+        # 总数量（需与上面的项数一致，这里是2个程序）
+        total: [2]
     
     steps:
-      # 步骤1：拉取仓库代码（共用）
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 步骤2：运行当前矩阵中的下载程序
       - name: 运行 ${{ matrix.program }} 下载程序
-        run: |
-          # 直接运行当前程序（矩阵参数动态传入）
-          .\${{ matrix.program }}.exe
-        shell: pwsh  # Windows 环境推荐用 PowerShell
+        run: .\${{ matrix.program }}.exe
+        shell: pwsh
 
-      # 步骤3：读取当前程序生成的标签和标题（假设程序会生成 tag.txt 和 title.txt）
       - name: 读取 ${{ matrix.program }} 的标签和标题
         id: read_info
         run: |
@@ -47,12 +45,10 @@ jobs:
             exit 1
           }
           
-          # 输出到环境变量供后续步骤使用
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
           echo "title=$title" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      # 步骤4：检查当前标签是否已存在
       - name: 检查 ${{ matrix.program }} 标签是否存在
         id: check_tag
         run: |
@@ -61,23 +57,20 @@ jobs:
           
           if ($tags -match "^$currentTag$") {
             echo "tag_exists=true" >> $env:GITHUB_OUTPUT
-            echo "标签 $currentTag 已存在，无需发布"
           } else {
             echo "tag_exists=false" >> $env:GITHUB_OUTPUT
-            echo "标签 $currentTag 不存在，准备发布"
           }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
 
-      # 步骤5：发布当前程序的 Release（仅当标签不存在时）
       - name: 发布 ${{ matrix.program }} 到 Release
         if: steps.check_tag.outputs.tag_exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.read_info.outputs.tag }}
           name: ${{ steps.read_info.outputs.title }}
-          files: ./downloading/*  # 上传下载的文件
+          files: ./downloading/*
           body: |
             自动发布于 ${{ github.event.head_commit.timestamp }}
             程序名称：${{ matrix.program }}
@@ -85,9 +78,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤6：清理下载目录（避免影响下一个程序，仅当不是最后一个矩阵项时执行）
+      # 修复：通过索引判断是否为最后一个程序（不清理最后一个程序的文件夹）
       - name: 清理下载文件夹
-        if: ${{ matrix.program != matrix.program[length(matrix.program)-1] }}
+        # 总数量-1 等于最后一个索引（例如总数量2，最后一个索引是1）
+        if: ${{ matrix.index != (matrix.total - 1) }}
         run: |
           if (Test-Path ./downloading) {
             Remove-Item ./downloading/* -Recurse -Force
