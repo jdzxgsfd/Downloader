@@ -23,7 +23,7 @@ jobs:
             index: 1
             total: 3
             last_index: 2  # 两个程序共享同一个最后索引
-          - program: "NuGetPackageExplorerDownloader"
+          - program: "CefFlashBrowserDownloader"
             index: 2
             total: 3
             last_index: 2  # 两个程序共享同一个最后索引
