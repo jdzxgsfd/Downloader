@@ -17,7 +17,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 步骤2：运行控制台程序（下载文件到 downloading 文件夹）
+      # 步骤2.1：运行控制台程序（下载文件到 downloading 文件夹）
       - name: 运行下载程序
         run: |
           # 进入程序所在目录（根据实际路径调整，例如 ./ 或 ./bin/Release）
@@ -25,7 +25,7 @@ jobs:
           # 运行 exe（替换为你的程序文件名）
           .\NotepadPlusPlusReleaseDownloader.exe
 
-      # 步骤3：读取tag.txt和title.txt内容
+      # 步骤2.2：读取tag.txt和title.txt内容
       - name: 读取标签和标题文件
         id: read_info
         run: |
@@ -49,7 +49,7 @@ jobs:
           echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
         shell: bash  # 使用bash处理文本更可靠
 
-      # 步骤4：检查标签是否已存在于Releases中
+      # 步骤2.3：检查标签是否已存在于Releases中
       - name: 检查标签是否已存在
         id: check_tag
         run: |
@@ -68,7 +68,77 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用token调用API
         shell: bash
         
-      # 步骤5：创建 GitHub Release 并上传文件
+      # 步骤2.4：创建 GitHub Release 并上传文件
+      - name: 发布到 GitHub Release
+        if: steps.check_tag.outputs.tag_exists == 'false'  # 条件判断
+        uses: softprops/action-gh-release@v2
+        with:
+          # Release 标题和标签（使用时间戳确保唯一）
+          tag_name: ${{ steps.read_info.outputs.tag }}  # 从tag.txt读取的标签
+          name: ${{ steps.read_info.outputs.title }}    # 从title.txt读取的标题
+          # 上传文件（根据实际情况调整路径，支持多个文件）
+          files: |
+            ./downloading/*
+          body: |                                       # 发布说明（可自定义）
+            自动发布于 ${{ github.event.head_commit.timestamp }}
+            运行编号：${{ github.run_number }}
+          # 自动删除旧的 Release（可选，避免仓库体积过大）
+          # prerelease: true  # 标记为预发布（可选）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的令牌，用于操作仓库
+
+      # 步骤3.1：运行控制台程序（下载文件到 downloading 文件夹）
+      - name: 运行下载程序
+        run: |
+          # 进入程序所在目录（根据实际路径调整，例如 ./ 或 ./bin/Release）
+          cd .
+          # 运行 exe（替换为你的程序文件名）
+          .\NuGetPackageExplorerDownloader.exe
+
+      # 步骤3.2：读取tag.txt和title.txt内容
+      - name: 读取标签和标题文件
+        id: read_info3
+        run: |
+          # 读取tag.txt内容（去除空白字符）
+          TAG_CONTENT=$(cat tag.txt | tr -d '\n' | xargs)
+          # 读取title.txt内容（去除空白字符）
+          TITLE_CONTENT=$(cat title.txt | tr -d '\n' | xargs)
+          
+          # 验证文件内容不为空
+          if [ -z "$TAG_CONTENT" ]; then
+            echo "Error: tag.txt内容为空"
+            exit 1
+          fi
+          if [ -z "$TITLE_CONTENT" ]; then
+            echo "Error: title.txt内容为空"
+            exit 1
+          fi
+          
+          # 输出到环境变量供后续步骤使用
+          echo "tag=$TAG_CONTENT" >> $GITHUB_OUTPUT
+          echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
+        shell: bash  # 使用bash处理文本更可靠
+
+      # 步骤3.3：检查标签是否已存在于Releases中
+      - name: 检查标签是否已存在
+        id: check_tag3
+        run: |
+          # 使用GitHub API查询仓库所有标签
+          TAGS=$(gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name')
+          
+          # 判断当前标签是否在已存在标签列表中
+          if echo "$TAGS" | grep -q "^${{ steps.read_info.outputs.tag }}$"; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "标签 ${{ steps.read_info.outputs.tag }} 已存在，无需发布"
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "标签 ${{ steps.read_info.outputs.tag }} 不存在，准备发布"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用token调用API
+        shell: bash
+        
+      # 步骤3.4：创建 GitHub Release 并上传文件
       - name: 发布到 GitHub Release
         if: steps.check_tag.outputs.tag_exists == 'false'  # 条件判断
         uses: softprops/action-gh-release@v2
