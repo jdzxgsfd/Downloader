@@ -17,16 +17,36 @@ jobs:
           # 程序1：NotepadPlusPlusReleaseDownloader
           - program_base: "NotepadPlusPlusReleaseDownloader"
             index: 0
-            last_index: 2  # 总程序数-1（当前3个程序，最后索引为2）
+            last_index: 7  # 总程序数-1（当前3个程序，最后索引为2）
           # 程序2：NuGetPackageExplorerDownloader
           - program_base: "NuGetPackageExplorerDownloader"
             index: 1
-            last_index: 2
-          # 程序3：voidImageViewerDownloader（新增程序）
+            last_index: 7
+          # 程序3：voidImageViewerDownloader
           - program_base: "voidImageViewerDownloader"
             index: 2
-            last_index: 2
-    
+            last_index: 7
+          # 程序4：CefFlashBrowserDownloader
+          - program_base: "CefFlashBrowserDownloader"
+            index: 3
+            last_index: 7
+          # 程序5：chrome_installerDownloader
+          - program_base: "chrome_installerDownloader"
+            index: 4
+            last_index: 7
+          # 程序6：edge_installerDownloader
+          - program_base: "edge_installerDownloader"
+            index: 5
+            last_index: 7
+          # 程序7：SevenZipDownloader
+          - program_base: "SevenZipDownloader"
+            index: 6
+            last_index: 7
+          # 程序8：upxDownloader
+          - program_base: "upxDownloader"
+            index: 7
+            last_index: 7
+            
     steps:
       # 步骤1：拉取仓库代码
       - name: 检出代码
