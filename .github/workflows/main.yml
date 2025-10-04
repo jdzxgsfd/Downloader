@@ -13,15 +13,17 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        # 给每个程序添加一个唯一索引（0, 1, ...），用于判断是否为最后一项
+        # 为每个程序定义：名称 + 索引 + 总数量 + 最后一个索引（总数量-1）
         include:
           - program: "NotepadPlusPlusReleaseDownloader"
             index: 0
+            total: 2
+            last_index: 1  # 总数量2的最后一个索引是1
           - program: "NuGetPackageExplorerDownloader"
             index: 1
-        # 总数量（需与上面的项数一致，这里是2个程序）
-        total: [2]
-    
+            total: 2
+            last_index: 1  # 两个程序共享同一个最后索引
+          
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -78,10 +80,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 修复：通过索引判断是否为最后一个程序（不清理最后一个程序的文件夹）
+      # 修复：通过预定义的 last_index 判断是否为最后一个程序
       - name: 清理下载文件夹
-        # 总数量-1 等于最后一个索引（例如总数量2，最后一个索引是1）
-        if: ${{ matrix.index != (matrix.total - 1) }}
+        # 若当前索引不等于最后一个索引，则清理（只保留最后一个程序不清理）
+        if: ${{ matrix.index != matrix.last_index }}
         run: |
           if (Test-Path ./downloading) {
             Remove-Item ./downloading/* -Recurse -Force
