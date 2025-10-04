@@ -1,9 +1,8 @@
 name: 定时运行程序并发布 Release
 
-# 触发条件：每小时运行一次，且支持手动触发
 on:
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '0 */1 * * *'  # 每小时运行一次
   workflow_dispatch:  # 允许手动触发
 
 permissions:
@@ -11,148 +10,87 @@ permissions:
   
 jobs:
   run-and-release:
-    runs-on: windows-latest  # .NET 4.7.2 依赖 Windows 环境
+    runs-on: windows-latest
+    # 定义矩阵参数：程序名称列表
+    strategy:
+      matrix:
+        program: [
+          "NotepadPlusPlusReleaseDownloader",
+          "NuGetPackageExplorerDownloader"
+        ]  # 在这里添加更多程序名即可扩展
+    
     steps:
-      # 步骤1：拉取仓库代码
+      # 步骤1：拉取仓库代码（共用）
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 步骤2.1：运行控制台程序（下载文件到 downloading 文件夹）
-      - name: 运行下载程序
+      # 步骤2：运行当前矩阵中的下载程序
+      - name: 运行 ${{ matrix.program }} 下载程序
         run: |
-          # 进入程序所在目录（根据实际路径调整，例如 ./ 或 ./bin/Release）
-          cd .
-          # 运行 exe（替换为你的程序文件名）
-          .\NotepadPlusPlusReleaseDownloader.exe
+          # 直接运行当前程序（矩阵参数动态传入）
+          .\${{ matrix.program }}.exe
+        shell: pwsh  # Windows 环境推荐用 PowerShell
 
-      # 步骤2.2：读取tag.txt和title.txt内容
-      - name: 读取标签和标题文件
+      # 步骤3：读取当前程序生成的标签和标题（假设程序会生成 tag.txt 和 title.txt）
+      - name: 读取 ${{ matrix.program }} 的标签和标题
         id: read_info
         run: |
-          # 读取tag.txt内容（去除空白字符）
-          TAG_CONTENT=$(cat tag.txt | tr -d '\n' | xargs)
-          # 读取title.txt内容（去除空白字符）
-          TITLE_CONTENT=$(cat title.txt | tr -d '\n' | xargs)
+          $tag = (Get-Content tag.txt -Raw).Trim()
+          $title = (Get-Content title.txt -Raw).Trim()
           
-          # 验证文件内容不为空
-          if [ -z "$TAG_CONTENT" ]; then
-            echo "Error: tag.txt内容为空"
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            Write-Error "${{ matrix.program }} 的 tag.txt 内容为空"
             exit 1
-          fi
-          if [ -z "$TITLE_CONTENT" ]; then
-            echo "Error: title.txt内容为空"
+          }
+          if ([string]::IsNullOrWhiteSpace($title)) {
+            Write-Error "${{ matrix.program }} 的 title.txt 内容为空"
             exit 1
-          fi
+          }
           
           # 输出到环境变量供后续步骤使用
-          echo "tag=$TAG_CONTENT" >> $GITHUB_OUTPUT
-          echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
-        shell: bash  # 使用bash处理文本更可靠
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "title=$title" >> $env:GITHUB_OUTPUT
+        shell: pwsh
 
-      # 步骤2.3：检查标签是否已存在于Releases中
-      - name: 检查标签是否已存在
+      # 步骤4：检查当前标签是否已存在
+      - name: 检查 ${{ matrix.program }} 标签是否存在
         id: check_tag
         run: |
-          # 使用GitHub API查询仓库所有标签
-          TAGS=$(gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name')
+          $tags = gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name'
+          $currentTag = "${{ steps.read_info.outputs.tag }}"
           
-          # 判断当前标签是否在已存在标签列表中
-          if echo "$TAGS" | grep -q "^${{ steps.read_info.outputs.tag }}$"; then
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
-            echo "标签 ${{ steps.read_info.outputs.tag }} 已存在，无需发布"
-          else
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
-            echo "标签 ${{ steps.read_info.outputs.tag }} 不存在，准备发布"
-          fi
+          if ($tags -match "^$currentTag$") {
+            echo "tag_exists=true" >> $env:GITHUB_OUTPUT
+            echo "标签 $currentTag 已存在，无需发布"
+          } else {
+            echo "tag_exists=false" >> $env:GITHUB_OUTPUT
+            echo "标签 $currentTag 不存在，准备发布"
+          }
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用token调用API
-        shell: bash
-        
-      # 步骤2.4：创建 GitHub Release 并上传文件
-      - name: 发布到 GitHub Release
-        if: steps.check_tag.outputs.tag_exists == 'false'  # 条件判断
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+
+      # 步骤5：发布当前程序的 Release（仅当标签不存在时）
+      - name: 发布 ${{ matrix.program }} 到 Release
+        if: steps.check_tag.outputs.tag_exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          # Release 标题和标签（使用时间戳确保唯一）
-          tag_name: ${{ steps.read_info.outputs.tag }}  # 从tag.txt读取的标签
-          name: ${{ steps.read_info.outputs.title }}    # 从title.txt读取的标题
-          # 上传文件（根据实际情况调整路径，支持多个文件）
-          files: |
-            ./downloading/*
-          body: |                                       # 发布说明（可自定义）
+          tag_name: ${{ steps.read_info.outputs.tag }}
+          name: ${{ steps.read_info.outputs.title }}
+          files: ./downloading/*  # 上传下载的文件
+          body: |
             自动发布于 ${{ github.event.head_commit.timestamp }}
+            程序名称：${{ matrix.program }}
             运行编号：${{ github.run_number }}
-          # 自动删除旧的 Release（可选，避免仓库体积过大）
-          # prerelease: true  # 标记为预发布（可选）
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的令牌，用于操作仓库
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤3.1：运行控制台程序（下载文件到 downloading 文件夹）
-      - name: 运行下载程序
+      # 步骤6：清理下载目录（避免影响下一个程序，仅当不是最后一个矩阵项时执行）
+      - name: 清理下载文件夹
+        if: ${{ matrix.program != matrix.program[length(matrix.program)-1] }}
         run: |
-          # 进入程序所在目录（根据实际路径调整，例如 ./ 或 ./bin/Release）
-          cd .
-          # 运行 exe（替换为你的程序文件名）
-          .\NuGetPackageExplorerDownloader.exe
-
-      # 步骤3.2：读取tag.txt和title.txt内容
-      - name: 读取标签和标题文件
-        id: read_info3
-        run: |
-          # 读取tag.txt内容（去除空白字符）
-          TAG_CONTENT=$(cat tag.txt | tr -d '\n' | xargs)
-          # 读取title.txt内容（去除空白字符）
-          TITLE_CONTENT=$(cat title.txt | tr -d '\n' | xargs)
-          
-          # 验证文件内容不为空
-          if [ -z "$TAG_CONTENT" ]; then
-            echo "Error: tag.txt内容为空"
-            exit 1
-          fi
-          if [ -z "$TITLE_CONTENT" ]; then
-            echo "Error: title.txt内容为空"
-            exit 1
-          fi
-          
-          # 输出到环境变量供后续步骤使用
-          echo "tag=$TAG_CONTENT" >> $GITHUB_OUTPUT
-          echo "title=$TITLE_CONTENT" >> $GITHUB_OUTPUT
-        shell: bash  # 使用bash处理文本更可靠
-
-      # 步骤3.3：检查标签是否已存在于Releases中
-      - name: 检查标签是否已存在
-        id: check_tag3
-        run: |
-          # 使用GitHub API查询仓库所有标签
-          TAGS=$(gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name')
-          
-          # 判断当前标签是否在已存在标签列表中
-          if echo "$TAGS" | grep -q "^${{ steps.read_info3.outputs.tag }}$"; then
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
-            echo "标签 ${{ steps.read_info.outputs.tag }} 已存在，无需发布"
-          else
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
-            echo "标签 ${{ steps.read_info.outputs.tag }} 不存在，准备发布"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用token调用API
-        shell: bash
-        
-      # 步骤3.4：创建 GitHub Release 并上传文件
-      - name: 发布到 GitHub Release
-        if: steps.check_tag.outputs.tag_exists == 'false'  # 条件判断
-        uses: softprops/action-gh-release@v2
-        with:
-          # Release 标题和标签（使用时间戳确保唯一）
-          tag_name: ${{ steps.read_info3.outputs.tag }}  # 从tag.txt读取的标签
-          name: ${{ steps.read_info3.outputs.title }}    # 从title.txt读取的标题
-          # 上传文件（根据实际情况调整路径，支持多个文件）
-          files: |
-            ./downloading/*
-          body: |                                       # 发布说明（可自定义）
-            自动发布于 ${{ github.event.head_commit.timestamp }}
-            运行编号：${{ github.run_number }}
-          # 自动删除旧的 Release（可选，避免仓库体积过大）
-          # prerelease: true  # 标记为预发布（可选）
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的令牌，用于操作仓库
+          if (Test-Path ./downloading) {
+            Remove-Item ./downloading/* -Recurse -Force
+            Write-Host "已清理 downloading 文件夹，准备处理下一个程序"
+          }
+        shell: pwsh
