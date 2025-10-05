@@ -17,63 +17,75 @@ jobs:
           # 程序1：NotepadPlusPlusReleaseDownloader
           - program_base: "NotepadPlusPlusReleaseDownloader"
             index: 0
-            last_index: 14  # 总程序数-1（当前3个程序，最后索引为2）
+            last_index: 17  # 总程序数-1（当前3个程序，最后索引为2）
           # 程序2：NuGetPackageExplorerDownloader
           - program_base: "NuGetPackageExplorerDownloader"
             index: 1
-            last_index: 14
+            last_index: 17
           # 程序3：voidImageViewerDownloader
           - program_base: "voidImageViewerDownloader"
             index: 2
-            last_index: 14
+            last_index: 17
           # 程序4：CefFlashBrowserDownloader
           - program_base: "CefFlashBrowserDownloader"
             index: 3
-            last_index: 14
+            last_index: 17
           # 程序5：chrome_installerDownloader
           - program_base: "chrome_installerDownloader"
             index: 4
-            last_index: 14
+            last_index: 17
           # 程序6：edge_installerDownloader
           - program_base: "edge_installerDownloader"
             index: 5
-            last_index: 14
+            last_index: 17
           # 程序7：SevenZipDownloader
           - program_base: "SevenZipDownloader"
             index: 6
-            last_index: 14
+            last_index: 17
           # 程序8：upxDownloader
           - program_base: "upxDownloader"
             index: 7
-            last_index: 14
+            last_index: 17
           # 程序9：ApkInfoDownloader
           - program_base: "ApkInfoDownloader"
             index: 8
-            last_index: 14
+            last_index: 17
           # 程序10：VCPP20152022
           - program_base: "VCPP20152022"
             index: 9
-            last_index: 14
+            last_index: 17
           # 程序11：VS2017Current
           - program_base: "VS2017Current"
             index: 10
-            last_index: 14
+            last_index: 17
           # 程序12：VS2019Current
           - program_base: "VS2019Current"
             index: 11
-            last_index: 14
+            last_index: 17
           # 程序13：VS2022Current
           - program_base: "VS2022Current"
             index: 12
-            last_index: 14
+            last_index: 17
           # 程序14：PostmanDownloader
           - program_base: "PostmanDownloader"
             index: 13
-            last_index: 14
+            last_index: 17
           # 程序15：sordum
           - program_base: "sordum"
             index: 14
-            last_index: 14
+            last_index: 17
+          # 程序16：Potplayer
+          - program_base: "Potplayer"
+            index: 15
+            last_index: 17
+          # 程序17：OpenCodecSetup
+          - program_base: "OpenCodecSetup"
+            index: 16
+            last_index: 17
+          # 程序18：WebView2RuntimeDownloader
+          - program_base: "WebView2RuntimeDownloader"
+            index: 17
+            last_index: 17
             
     steps:
       # 步骤1：拉取仓库代码
