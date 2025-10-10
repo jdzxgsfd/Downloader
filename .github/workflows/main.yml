@@ -175,20 +175,54 @@ jobs:
         shell: pwsh
 
       # 步骤4：检查当前标签是否已存在于Releases
-      - name: 检查 ${{ matrix.program_base }} 标签是否存在
-        id: check_tag
+      - name: 检查 Release 标题最后一段字符串是否存在
+        id: check_tag  # 保持id不变，便于后续引用
         run: |
-          $currentTag = "${{ steps.read_info.outputs.tag }}"
-          # 调用GitHub API获取所有Release标签
-          $tags = gh api repos/${{ github.repository }}/releases | jq -r '.[].tag_name'
+          # 获取目标标题（假设来自 read_info 步骤的 outputs.title）
+          $currentTag = "${{ steps.read_info.outputs.title }}"  # 保持变量名$currentTag不变
+          Write-Host "原始目标标题: $currentTag"
           
-          # 判断标签是否存在
-          if ($tags -match "^$currentTag$") {
+          # 提取标题中最后一个空格后的字符串（核心修改）
+          $lastSpaceIndex = $currentTag.LastIndexOf(' ')
+          if ($lastSpaceIndex -ge 0 -and $lastSpaceIndex -lt $currentTag.Length - 1) {
+            $targetLastPart = $currentTag.Substring($lastSpaceIndex + 1)
+          } else {
+            $targetLastPart = $currentTag  # 无空格时用完整标题
+          }
+          Write-Host "需检查的最后一段字符串: $targetLastPart"
+          
+          # 获取所有现有Release的标题
+          $allReleaseTitles = gh api repos/${{ github.repository }}/releases --jq '.[].name'
+          if (-not $allReleaseTitles) {
+            Write-Host "仓库暂无任何Releases"
+            echo "tag_exists=false" >> $env:GITHUB_OUTPUT  # 保持输出变量名
+            exit 0
+          }
+          
+          # 检查现有标题的最后一段是否匹配
+          $exists = $false
+          foreach ($title in $allReleaseTitles) {
+            $titleLastSpaceIndex = $title.LastIndexOf(' ')
+            $titleLastPart = if ($titleLastSpaceIndex -ge 0 -and $titleLastSpaceIndex -lt $title.Length - 1) {
+              $title.Substring($titleLastSpaceIndex + 1)
+            } else {
+              $title
+            }
+            
+            if ($titleLastPart -eq $targetLastPart) {
+              Write-Host "发现匹配的现有标题: $title（最后一段: $titleLastPart）"
+              $exists = $true
+              break
+            }
+          }
+          
+          # 输出结果（保持变量名tag_exists）
+          if ($exists) {
             echo "tag_exists=true" >> $env:GITHUB_OUTPUT
-            Write-Host "标签 $currentTag 已存在，无需发布"
+            Write-Host "最后一段字符串 '$targetLastPart' 已存在"
           } else {
             echo "tag_exists=false" >> $env:GITHUB_OUTPUT
-            Write-Host "标签 $currentTag 不存在，准备发布"
+            Write-Host "最后一段字符串 '$targetLastPart' 不存在"
           }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
